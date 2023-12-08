@@ -1,18 +1,18 @@
 -- CREATE DATABASE secao03;
 
-CREATE TABLE tipos_produtos {
+CREATE TABLE tipos_produtos (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     descricao TEXT NOT NULL
-};
+);
 
-CREATE TABLE produtos {
+CREATE TABLE produtos (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     descricao TEXT NOT NULL,
     preco REAL NOT NULL,
     id_tipo_produto INTEGER REFERENCES tipo_produtos(id) NOT NULL
-};
+);
 
-CREATE TABLE pacientes {
+CREATE TABLE pacientes (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     nome TEXT NOT NULL,
     endereco TEXT NOT NULL,
@@ -21,16 +21,16 @@ CREATE TABLE pacientes {
     estado TEXT NOT NULL,
     cep TEXT NOT NULL,
     data_nascimento TEXT NOT NULL
-};
+);
 
-CREATE TABLE professor {
+CREATE TABLE professor (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     telefone TEXT NOT NULL,
     nome TEXT NOT NULL
-};
+);
 
-CREATE TABLE turma {
+CREATE TABLE turma (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     capacidade INTEGER NOT NULL,
     id_professor INTEGER REFERENCES professor(id) NOT NULL
-};
+);
