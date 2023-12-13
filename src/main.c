@@ -87,6 +87,8 @@ int inserirUsuario(char *username, char *password)
 
     char sql[100];
     sprintf(sql, "INSERT INTO usuarios (username, password) VALUES");
+
+    return 0;
 }
 
 int main(void) 
