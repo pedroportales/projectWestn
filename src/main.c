@@ -30,9 +30,12 @@ int createTable()
     }
 
     // criando uma tabela dentro do arquivo
-    char create[] = "CREATE TABLE tipos_produtos ("
+
+    // Tabela usuarios
+    char create[] = "CREATE TABLE IF NOT EXISTS usuarios ("
                     "id INTEGER PRIMARY KEY AUTOINCREMENT,"
-                    "descricao TEXT NOT NULL)";
+                    "username TEXT UNIQUE NOT NULL"
+                    "password TEXT NOT NULL);";
 
     rc = sqlite3_exec(db, create, sqlite3_retorno, 0, &mensagem_erro);
 
