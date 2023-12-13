@@ -1,6 +1,6 @@
 -- CREATE DATABASE secao03;
 
-CREATE TABLE tipos_produtos (
+/*CREATE TABLE tipos_produtos (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     descricao TEXT NOT NULL
 );
@@ -33,4 +33,10 @@ CREATE TABLE turma (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     capacidade INTEGER NOT NULL,
     id_professor INTEGER REFERENCES professor(id) NOT NULL
-);
+);*/
+
+CREATE TABLE IF NOT EXISTS usuarios (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    username TEXT UNIQUE NOT NULL
+    password TEXT NOT NULL);
+
