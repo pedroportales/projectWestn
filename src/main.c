@@ -31,9 +31,9 @@ int createUsuarios()
     // criando uma tabela dentro do arquivo
 
     // Tabela usuario    
-    char *create = "CREATE TABLE usuarios( "
+    char *create = "CREATE TABLE IF NOT EXISTS usuarios( "
                     "id INTEGER PRIMARY KEY AUTOINCREMENT,"
-                    "usuario TEXT NOT NULL,"
+                    "usuario UNIQUE TEXT NOT NULL,"
                     "password TEXT NOT NULL);";
 
     rc = sqlite3_exec(db, create, sqlite3_retorno, 0, &mensagem_erro);
@@ -62,7 +62,7 @@ int createEmprestimos()
                     "valor REAL NOT NULL,"
                     "taxa_juros REAL NOT NULL,"
                     "meses INTEGER NOT NULL,"
-                    "FOREIGN KEY (usuario_id) REFERENCES usuarios (id))";
+                    "FOREIGN KEY (usuario_id) REFERENCES usuarios(id))";
 
     rc = sqlite3_exec(db, create, sqlite3_retorno, 0, &mensagem_erro);
 
