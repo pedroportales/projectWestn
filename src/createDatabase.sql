@@ -40,3 +40,10 @@ CREATE TABLE IF NOT EXISTS usuarios (
     username TEXT UNIQUE NOT NULL
     password TEXT NOT NULL);
 
+CREATE TABLE IF NOT EXISTS emprestimo(
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    usuario_id INTEGER,
+    valor REAL NOT NULL,
+    taxa_juros REAL NOT NULL,
+    meses INTEGER NOT NULL,
+    FOREIGN KEY (usuario_id) REFERENCES usuarios(id));
