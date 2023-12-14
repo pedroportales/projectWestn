@@ -5,12 +5,12 @@
 
 int sqlite3_retorno(void *NotUsed, int argc, char **argv, char **coluna) 
 { // funcao de Callback
-    for (int i = 0; i < argc; i++)
+    /*for (int i = 0; i < argc; i++)
     {
         printf("%s = %s\n", coluna[i], argv[i] ? argv[i] : "NULL");
     }
 
-    printf("\n");
+    printf("\n");*/
     return 0;
 }
 
@@ -264,14 +264,6 @@ int main(void)
     inserirEmprestimo(1, 1000.0, 12.75, 12);
     consultarUsuario();
     consultarEmprestimo();
-    
-    int resultadoLogin = realizarLogin("usuario_teste", "senha123");
-    
-    if (resultadoLogin == 0) {
-        printf("Login bem-sucedido!\n");
-    } else {
-        printf("Falha no login!\n");
-    }
-    return 0;
+    realizarLogin("usuario_teste", "senha123");
 }
  
