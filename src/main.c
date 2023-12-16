@@ -530,7 +530,7 @@ int main(void)
 {
     createUsuarios();
     createEmprestimos();
-    inserirUsuario("usuario_teste", "senha123");
+    inserirUsuario("admin", "admin");
     while (telaLogin() != 1)
     {
         system("clear");
