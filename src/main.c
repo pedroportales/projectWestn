@@ -33,20 +33,15 @@ static int verificaRegistroCallback(void *data, int argc, char **argv, char **az
     return 0;
 }
 
-double calcularJurosCompostos(double principal, double taxaJuros, int periodos) {
+float calcularJurosCompostos(float principal, float taxaJuros, int periodos) {
     // Converte a taxa de juros para decimal
     taxaJuros /= 100.0;
-    taxaJuros /= 12.0;
-    printf("Taxa: %f\n", taxaJuros);
 
-    // Calcula juros compostos mês a mês
-    for (int i = 0; i < periodos; ++i) {
-        principal *= (1 + taxaJuros);
-        printf("Principal: %f\n", principal);
-        printf("Taxa: %f\n", taxaJuros);
-    }
+    // Calcula a prestação usando a fórmula de amortização
+    float prestacao = (principal * taxaJuros * pow(1 + taxaJuros, periodos)) /
+                       (pow(1 + taxaJuros, periodos) - 1);
 
-    return principal;
+    return prestacao;
 }
 
 int createUsuarios()
@@ -159,54 +154,117 @@ int inserirEmprestimo(int usuario_id, float valor, float taxa_juros, int meses)
     return 0;
 }
 
-int consultarUsuario()
+int consultarUsuario(int usuarioID)
 {
-    sqlite3 * db = 0;
-    char * mensagem_erro = 0;
+    sqlite3 *db;
+    sqlite3_stmt *stmt;
+    const char *sql = "SELECT * FROM usuarios WHERE id = ?;";
+    int rc;
 
-    int rc = sqlite3_open("database.sqlite", &db);
+    rc = sqlite3_open("database.sqlite", &db);
 
-    if (rc != SQLITE_OK) 
-    {
-        printf("ERRO ao abrir: %s\n", sqlite3_errmsg(db));
+    if (rc != SQLITE_OK) {
+        fprintf(stderr, "Não foi possível abrir o banco de dados: %s\n", sqlite3_errmsg(db));
         sqlite3_close(db);
-        return 1;
+        exit(1);
     }
 
-    char sql[100];
-    sprintf(sql, "SELECT * FROM usuarios;");
+    rc = sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
 
-    rc = sqlite3_exec(db, sql, false_callback, 0, &mensagem_erro);
+    if (rc != SQLITE_OK) {
+        fprintf(stderr, "Erro ao preparar a consulta: %s\n", sqlite3_errmsg(db));
+        sqlite3_close(db);
+        exit(1);
+    }
 
-    sqlite3_free(mensagem_erro);
+    // Substitui o marcador de posição ? pelo ID do usuário
+    rc = sqlite3_bind_int(stmt, 1, usuarioID);
+
+    if (rc != SQLITE_OK) {
+        fprintf(stderr, "Erro ao fazer bind dos parâmetros: %s\n", sqlite3_errmsg(db));
+        sqlite3_finalize(stmt);
+        sqlite3_close(db);
+        exit(1);
+    }
+
+    // Executa a consulta
+    if ((rc = sqlite3_step(stmt)) == SQLITE_ROW) {
+        // Processa a linha do resultado
+        int id = sqlite3_column_int(stmt, 0);
+        const char *username = (const char *)sqlite3_column_text(stmt, 1);
+
+        printf("ID: %d, Usuário: %s\n", id, username);
+    } else {
+        fprintf(stderr, "Usuário não encontrado.\n");
+    }
+
+    sqlite3_finalize(stmt);
     sqlite3_close(db);
-
-    return 0;
 }
 
-int consultarEmprestimo()
-{
-    sqlite3 * db = 0;
-    char * mensagem_erro = 0;
+void consultarEmprestimosUsuario(int usuarioID) {
+    sqlite3 *db;
+    sqlite3_stmt *stmt;
+    const char *sql = "SELECT * FROM emprestimo WHERE usuario_id = ?;";
+    int rc;
 
-    int rc = sqlite3_open("database.sqlite", &db);
+    rc = sqlite3_open("database.sqlite", &db);
 
-    if (rc != SQLITE_OK) 
-    {
-        printf("ERRO ao abrir: %s\n", sqlite3_errmsg(db));
+    if (rc != SQLITE_OK) {
+        fprintf(stderr, "Não foi possível abrir o banco de dados: %s\n", sqlite3_errmsg(db));
         sqlite3_close(db);
-        return 1;
+        exit(1);
     }
 
-    char sql[100];
-    sprintf(sql, "SELECT * FROM emprestimo;");
+    rc = sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
 
-    rc = sqlite3_exec(db, sql, sqlite3_retorno, 0, &mensagem_erro);
+    if (rc != SQLITE_OK) {
+        fprintf(stderr, "Erro ao preparar a consulta: %s\n", sqlite3_errmsg(db));
+        sqlite3_close(db);
+        exit(1);
+    }
 
-    sqlite3_free(mensagem_erro);
+    // Substitui o marcador de posição ? pelo ID do usuário
+    rc = sqlite3_bind_int(stmt, 1, usuarioID);
+
+    if (rc != SQLITE_OK) {
+        fprintf(stderr, "Erro ao fazer bind dos parâmetros: %s\n", sqlite3_errmsg(db));
+        sqlite3_finalize(stmt);
+        sqlite3_close(db);
+        exit(1);
+    }
+
+    // Executa a consulta
+    while ((rc = sqlite3_step(stmt)) == SQLITE_ROW) {
+        // Processa cada linha do resultado
+        int emprestimoID = sqlite3_column_int(stmt, 0);
+        double valorEmprestado = sqlite3_column_double(stmt, 2);
+        double taxaJuros = sqlite3_column_double(stmt, 3);
+        int numeroPrestacoes = sqlite3_column_int(stmt, 4);
+
+        printf("\nEmpréstimo ID: %d\nValor: %.2f\nTaxa de Juros: %.2f%%\nNúmero de Prestações: %d\n",
+               emprestimoID, valorEmprestado, taxaJuros, numeroPrestacoes);
+
+        double valorPrestacao = calcularJurosCompostos(valorEmprestado, taxaJuros, numeroPrestacoes);
+        
+        if (!isnan(valorPrestacao))
+            {
+                printf("Valor da prestação: %.2f\n", valorPrestacao);
+                printf("Valor total: %.2f\n", valorPrestacao * numeroPrestacoes);
+            }
+            else 
+            {
+                printf("Erro: Valor da prestacao indefinido.\n");
+            }
+        
+    }
+
+    if (rc != SQLITE_DONE) {
+        fprintf(stderr, "Erro ao executar a consulta: %s\n", sqlite3_errmsg(db));
+    }
+
+    sqlite3_finalize(stmt);
     sqlite3_close(db);
-
-    return 0;
 }
 
 // Função para verificar se há registros na tabela de usuários
@@ -292,45 +350,36 @@ void menu()
     int opt = 0, prestacoes;
     double valor, taxa_juros = 11.75;
 
-    while(opt != 5)
+    while(opt != 4)
     {
         printf("\n-----MENU-----\n");
-        printf("1. Pedir empréstimo\n");
-        printf("2. Consultar empréstimo\n");
+        printf("1. Simular empréstimo\n");
+        printf("2. Histórico empréstimos\n");
         printf("3. Consultar usuário\n");
-        printf("4. Valor das Prestações\n");
-        printf("5. Sair do sistema...\n");
+        printf("4. Sair do sistema...\n");
         printf("Escolha uma opção: ");
         scanf("%d", &opt);
 
         switch (opt)
         {
         case 1:
+            system("clear");
             printf("Insira o valor do empréstimo: ");
-            scanf("%f", &valor);
+            scanf("%lf", &valor);
             printf("Insira em quantos meses deseja pagar: ");
             scanf("%d", &prestacoes);
             inserirEmprestimo(usuarioLogadoID, valor, taxa_juros, prestacoes);
             break;
         case 2:
-            consultarEmprestimo();
+            system("clear");
+            consultarEmprestimosUsuario(usuarioLogadoID);
             break;
         case 3:
-            // code
+            system("clear");
+            consultarUsuario(usuarioLogadoID);
             break;
         case 4:
-            float valorPrestacao = calcularJurosCompostos(valor, taxa_juros, prestacoes);
-            if (!isnan(valorPrestacao))
-            {
-                printf("Valor da prestacao: %f\n", valorPrestacao);
-                printf("Valor total: %f\n", valorPrestacao * prestacoes);
-            }
-            else 
-            {
-                printf("Erro: Valor da prestacao indefinido.\n");
-            }
-            break;
-        case 5:
+            system("clear");
             printf("Finalizando...\n");
             break;
         default:
