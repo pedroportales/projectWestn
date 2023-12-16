@@ -1,16 +1,34 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <string.h>
+#include <termios.h>
+#include <unistd.h>
 #include "sqlite3.h"
+
+int usuarioLogadoID = -1;
 
 int sqlite3_retorno(void *NotUsed, int argc, char **argv, char **coluna) 
 { // funcao de Callback
-    /*for (int i = 0; i < argc; i++)
+    for (int i = 0; i < argc; i++)
     {
         printf("%s = %s\n", coluna[i], argv[i] ? argv[i] : "NULL");
     }
 
-    printf("\n");*/
+    printf("\n");
+    
+    return 0;
+}
+
+int false_callback()
+{
+    return 0;
+}
+
+static int verificaRegistroCallback(void *data, int argc, char **argv, char **azColName)
+{
+    int *temRegistro = (int *)data;
+    *temRegistro = 1; // Sinaliza que há pelo menos um registro
     return 0;
 }
 
@@ -141,7 +159,7 @@ int consultarUsuario()
     char sql[100];
     sprintf(sql, "SELECT * FROM usuarios;");
 
-    rc = sqlite3_exec(db, sql, sqlite3_retorno, 0, &mensagem_erro);
+    rc = sqlite3_exec(db, sql, false_callback, 0, &mensagem_erro);
 
     sqlite3_free(mensagem_erro);
     sqlite3_close(db);
@@ -174,96 +192,162 @@ int consultarEmprestimo()
     return 0;
 }
 
-/*bool pesquisarEmUsuario( sqlite3 * p_db )
+// Função para verificar se há registros na tabela de usuários
+void verificarUsuarios(char *username, char *password) 
 {
-    sqlite3_stmt * handle_sql = 0;
-    char comando_sql[] = "SELECT * FROM funcionario WHERE nascimento=?";
+    sqlite3 *db;
+    sqlite3_stmt *stmt;
+    char *zErrMsg = 0;
+    int rc;
 
-    int rc = sqlite3_prepare_v2( p_db, comando_sql, -1, &handle_sql, 0 );
+    //int temRegistro = 0; // Variável para sinalizar se há pelo menos um registro
 
-    if ( rc != SQLITE_OK )
-    {
-        printf( "ERRO no prepare: %s\n", sqlite3_errmsg( p_db ) );
-        return false;
-    }
+    rc = sqlite3_open("database.sqlite", &db);
 
-    rc = sqlite3_bind_text( handle_sql, 1, "14/11/1922", -1, NULL );
-
-    if ( rc != SQLITE_OK )
-    {
-        printf( "ERRO no bind: %s\n", sqlite3_errmsg( p_db ) );
-        return false;
-    }
-
-    rc = sqlite3_step( handle_sql );
-
-    if ( rc == SQLITE_ROW)
-    {
-        // retornar os valores dos campos se precisar
-        printf("id........: %s\n", sqlite3_column_text(handle_sql, 0 ) );
-        printf("nome......: %s\n", sqlite3_column_text(handle_sql, 1 ) );
-        printf("nascimento: %s\n", sqlite3_column_text(handle_sql, 2 ) );
-    }
-
-    sqlite3_free( handle_sql );
-    return true;
-}*/
-
-int realizarLogin(char *username, char *password)
-{
-    sqlite3 * db = 0;
-    char * mensagem_erro = 0;
-
-    int rc = sqlite3_open("database.sqlite", &db);
-
-    if (rc != SQLITE_OK) 
-    {
-        printf("ERRO ao abrir: %s\n", sqlite3_errmsg(db));
+    if (rc) {
+        fprintf(stderr, "Não foi possível abrir o banco de dados: %s\n", sqlite3_errmsg(db));
         sqlite3_close(db);
-        return 1;
+        exit(1);
     }
+
+    // Consultar se há algum registro na tabela de usuários
+    /*char sql[200];
+    sprintf(sql, "SELECT 1 FROM usuarios WHERE username = '%s' AND password = '%s' LIMIT 1;", username, password);
+    
+    rc = sqlite3_exec(db, sql, verificaRegistroCallback, &temRegistro, &zErrMsg);*/
 
     char sql[200];
-    sprintf(sql, "SELECT * FROM usuarios WHERE username = '%s';", username);
+    sprintf(sql, "SELECT id FROM usuarios WHERE username = ? AND password = ?;");
 
-    rc = sqlite3_exec(db, sql, sqlite3_retorno, 0, &mensagem_erro);
+    rc = sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
 
-    if (rc != SQLITE_OK) {
-        fprintf(stderr, "Erro SQL: %s\n", mensagem_erro);
-        sqlite3_free(mensagem_erro);
+    if (rc != SQLITE_OK)
+    {
+        fprintf(stderr, "Erro ao preparar a consulta: %s\n", sqlite3_errmsg(db));
         sqlite3_close(db);
-        return 1;  // Indica falha no login
+        exit(1);
     }
 
-    // Se chegamos aqui, o usuário existe, e agora verificamos a senha
-    // (Este exemplo não inclui a verificação do sal para simplificar)
-    sprintf(sql, "SELECT * FROM usuarios WHERE username = '%s' AND password = '%s';", username, password);
-    rc = sqlite3_exec(db, sql, sqlite3_retorno, 0, &mensagem_erro);
+    // Bind dos parâmetros
+    rc = sqlite3_bind_text(stmt, 1, username, strlen(username), SQLITE_STATIC);
+    rc = sqlite3_bind_text(stmt, 2, password, strlen(password), SQLITE_STATIC);
 
-    if (rc != SQLITE_OK) {
-        fprintf(stderr, "Erro SQL: %s\n", mensagem_erro);
-        sqlite3_free(mensagem_erro);
+    if (rc != SQLITE_OK)
+    {
+        fprintf(stderr, "Erro ao fazer bind dos parâmetros: %s\n", sqlite3_errmsg(db));
+        sqlite3_finalize(stmt);
         sqlite3_close(db);
-        return 0;  // Indica falha no login
+        exit(1);
     }
 
-    // Se chegamos aqui, as credenciais são válidas
-    printf("Login bem-sucedido!\n");
+    // Executar a consulta
+    rc = sqlite3_step(stmt);
 
-    sqlite3_free(mensagem_erro);
+    if (rc == SQLITE_ROW)
+    {
+        // Obtém o ID do usuário diretamente usando sqlite3_column_int
+        usuarioLogadoID = sqlite3_column_int(stmt, 0);
+    }
+
+    // Finalizar o statement
+    sqlite3_finalize(stmt);
     sqlite3_close(db);
+}
 
-    return 0;
+// Função para desativar o modo de eco do terminal
+void desativarEcoTerminal() {
+    struct termios term;
+    tcgetattr(STDIN_FILENO, &term);
+    term.c_lflag &= ~ECHO;
+    tcsetattr(STDIN_FILENO, TCSANOW, &term);
+}
+
+// Função para reativar o modo de eco do terminal
+void reativarEcoTerminal() {
+    struct termios term;
+    tcgetattr(STDIN_FILENO, &term);
+    term.c_lflag |= ECHO;
+    tcsetattr(STDIN_FILENO, TCSANOW, &term);
+}
+
+void menu()
+{
+    int opt = 0;
+
+    system("clear");
+
+    while(opt != 5)
+    {
+        printf("\n-----MENU-----\n");
+        printf("1. Pedir empréstimo\n");
+        printf("2. Consultar empréstimo\n");
+        printf("3. Consultar usuário\n");
+        printf("4. Listar Prestações\n");
+        printf("5. Sair do sistema...\n");
+        printf("Escolha uma opção: ");
+        scanf("%d", &opt);
+
+        switch (opt)
+        {
+        case 1:
+            int pedirEmprestimo();
+            break;
+        case 2:
+            consultarEmprestimo();
+            break;
+        case 3:
+            // code
+            break;
+        case 4:
+            // code
+            break;
+        case 5:
+            printf("Finalizando...\n");
+            break;
+        default:
+            break;
+        }
+    }
+}
+
+int telaLogin()
+{
+    char user[50], passwd[50];
+
+    setbuf(stdin, NULL);
+    printf("Insira seu usuário: ");
+    fgets(user, sizeof(user), stdin);
+    printf("Insira sua senha: ");
+    desativarEcoTerminal();
+    fgets(passwd, sizeof(passwd), stdin);
+    reativarEcoTerminal();
+
+    user[strcspn(user, "\n")] = 0;
+    passwd[strcspn(passwd, "\n")] = 0;
+
+    verificarUsuarios(user, passwd);
+
+    if (usuarioLogadoID != -1)
+    {
+        printf("Login bem-sucedido. ID do usuário logado: %d\n", usuarioLogadoID);
+        return 1;
+    } else {
+        printf("%d\n", usuarioLogadoID);
+        return 0;
+    }
+
 }
 
 int main(void) 
 {
-    createUsuarios();
-    createEmprestimos();
-    inserirUsuario("usuario_teste", "senha123");
-    inserirEmprestimo(1, 1000.0, 12.75, 12);
-    consultarUsuario();
-    consultarEmprestimo();
-    realizarLogin("usuario_teste", "senha123");
+    while (telaLogin() != 1)
+    {
+        system("clear");
+        printf("Falha no login. Usuário não encontrado ou senha incorreta.\n");
+        system("sleep 3");
+    }
+
+    menu();
+    
 }
  
