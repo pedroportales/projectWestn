@@ -4,6 +4,7 @@
 #include <string.h>
 #include <termios.h>
 #include <unistd.h>
+#include <math.h>
 #include "sqlite3.h"
 
 int usuarioLogadoID = -1;
@@ -30,6 +31,22 @@ static int verificaRegistroCallback(void *data, int argc, char **argv, char **az
     int *temRegistro = (int *)data;
     *temRegistro = 1; // Sinaliza que há pelo menos um registro
     return 0;
+}
+
+double calcularJurosCompostos(double principal, double taxaJuros, int periodos) {
+    // Converte a taxa de juros para decimal
+    taxaJuros /= 100.0;
+    taxaJuros /= 12.0;
+    printf("Taxa: %f\n", taxaJuros);
+
+    // Calcula juros compostos mês a mês
+    for (int i = 0; i < periodos; ++i) {
+        principal *= (1 + taxaJuros);
+        printf("Principal: %f\n", principal);
+        printf("Taxa: %f\n", taxaJuros);
+    }
+
+    return principal;
 }
 
 int createUsuarios()
@@ -272,9 +289,8 @@ void reativarEcoTerminal() {
 
 void menu()
 {
-    int opt = 0;
-
-    system("clear");
+    int opt = 0, prestacoes;
+    double valor, taxa_juros = 11.75;
 
     while(opt != 5)
     {
@@ -282,7 +298,7 @@ void menu()
         printf("1. Pedir empréstimo\n");
         printf("2. Consultar empréstimo\n");
         printf("3. Consultar usuário\n");
-        printf("4. Listar Prestações\n");
+        printf("4. Valor das Prestações\n");
         printf("5. Sair do sistema...\n");
         printf("Escolha uma opção: ");
         scanf("%d", &opt);
@@ -290,7 +306,11 @@ void menu()
         switch (opt)
         {
         case 1:
-            int pedirEmprestimo();
+            printf("Insira o valor do empréstimo: ");
+            scanf("%f", &valor);
+            printf("Insira em quantos meses deseja pagar: ");
+            scanf("%d", &prestacoes);
+            inserirEmprestimo(usuarioLogadoID, valor, taxa_juros, prestacoes);
             break;
         case 2:
             consultarEmprestimo();
@@ -299,7 +319,16 @@ void menu()
             // code
             break;
         case 4:
-            // code
+            float valorPrestacao = calcularJurosCompostos(valor, taxa_juros, prestacoes);
+            if (!isnan(valorPrestacao))
+            {
+                printf("Valor da prestacao: %f\n", valorPrestacao);
+                printf("Valor total: %f\n", valorPrestacao * prestacoes);
+            }
+            else 
+            {
+                printf("Erro: Valor da prestacao indefinido.\n");
+            }
             break;
         case 5:
             printf("Finalizando...\n");
@@ -340,6 +369,9 @@ int telaLogin()
 
 int main(void) 
 {
+    createUsuarios();
+    createEmprestimos();
+    inserirUsuario("usuario_teste", "senha123");
     while (telaLogin() != 1)
     {
         system("clear");
