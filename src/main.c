@@ -329,6 +329,98 @@ void verificarUsuarios(char *username, char *password)
     sqlite3_close(db);
 }
 
+void atualizarEmprestimo(int emprestimoID, double novoValor, int novoNumeroPrestacoes) {
+    sqlite3 *db;
+    sqlite3_stmt *stmt;
+    const char *sql = "UPDATE emprestimo SET valor = ?, meses = ? WHERE id = ?;";
+    int rc;
+
+    rc = sqlite3_open("database.sqlite", &db);
+
+    if (rc != SQLITE_OK) {
+        fprintf(stderr, "Não foi possível abrir o banco de dados: %s\n", sqlite3_errmsg(db));
+        sqlite3_close(db);
+        exit(1);
+    }
+
+    rc = sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+
+    if (rc != SQLITE_OK) {
+        fprintf(stderr, "Erro ao preparar a consulta: %s\n", sqlite3_errmsg(db));
+        sqlite3_close(db);
+        exit(1);
+    }
+
+    // Substitui os marcadores de posição ? pelos novos valores
+    rc = sqlite3_bind_double(stmt, 1, novoValor);
+    rc = sqlite3_bind_int(stmt, 2, novoNumeroPrestacoes);
+    rc = sqlite3_bind_int(stmt, 3, emprestimoID);
+
+    if (rc != SQLITE_OK) {
+        fprintf(stderr, "Erro ao fazer bind dos parâmetros: %s\n", sqlite3_errmsg(db));
+        sqlite3_finalize(stmt);
+        sqlite3_close(db);
+        exit(1);
+    }
+
+    // Executa a atualização
+    rc = sqlite3_step(stmt);
+
+    if (rc != SQLITE_DONE) {
+        fprintf(stderr, "Erro ao executar a atualização: %s\n", sqlite3_errmsg(db));
+    } else {
+        printf("Registro de empréstimo atualizado com sucesso.\n");
+    }
+
+    sqlite3_finalize(stmt);
+    sqlite3_close(db);
+}
+
+void removerEmprestimo(int emprestimoID) {
+    sqlite3 *db;
+    sqlite3_stmt *stmt;
+    const char *sql = "DELETE FROM emprestimo WHERE id = ?;";
+    int rc;
+
+    rc = sqlite3_open("database.sqlite", &db);
+
+    if (rc != SQLITE_OK) {
+        fprintf(stderr, "Não foi possível abrir o banco de dados: %s\n", sqlite3_errmsg(db));
+        sqlite3_close(db);
+        exit(1);
+    }
+
+    rc = sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+
+    if (rc != SQLITE_OK) {
+        fprintf(stderr, "Erro ao preparar a consulta: %s\n", sqlite3_errmsg(db));
+        sqlite3_close(db);
+        exit(1);
+    }
+
+    // Substitui o marcador de posição ? pelo ID do empréstimo
+    rc = sqlite3_bind_int(stmt, 1, emprestimoID);
+
+    if (rc != SQLITE_OK) {
+        fprintf(stderr, "Erro ao fazer bind dos parâmetros: %s\n", sqlite3_errmsg(db));
+        sqlite3_finalize(stmt);
+        sqlite3_close(db);
+        exit(1);
+    }
+
+    // Executa a exclusão
+    rc = sqlite3_step(stmt);
+
+    if (rc != SQLITE_DONE) {
+        fprintf(stderr, "Erro ao executar a exclusão: %s\n", sqlite3_errmsg(db));
+    } else {
+        printf("Registro de empréstimo removido com sucesso.\n");
+    }
+
+    sqlite3_finalize(stmt);
+    sqlite3_close(db);
+}
+
 // Função para desativar o modo de eco do terminal
 void desativarEcoTerminal() {
     struct termios term;
@@ -347,16 +439,18 @@ void reativarEcoTerminal() {
 
 void menu()
 {
-    int opt = 0, prestacoes;
-    double valor, taxa_juros = 11.75;
+    int opt = 0, prestacoes, novoNumeroPrestacoes, emprestimoID;
+    double valor, novoValor, taxa_juros = 11.75;
 
-    while(opt != 4)
+    while(opt != 6)
     {
         printf("\n-----MENU-----\n");
         printf("1. Simular empréstimo\n");
         printf("2. Histórico empréstimos\n");
         printf("3. Consultar usuário\n");
-        printf("4. Sair do sistema...\n");
+        printf("4. Atualizar empréstimo\n");
+        printf("5. Remover empréstimo\n");
+        printf("6. Sair do sistema...\n");
         printf("Escolha uma opção: ");
         scanf("%d", &opt);
 
@@ -379,6 +473,22 @@ void menu()
             consultarUsuario(usuarioLogadoID);
             break;
         case 4:
+            system("clear");
+            printf("Insira o ID do empréstimo: ");
+            scanf("%d", &emprestimoID);
+            printf("Insira o novo valor do empréstimo: ");
+            scanf("%lf", &novoValor);
+            printf("Insira em quantos meses deseja pagar: ");
+            scanf("%d", &novoNumeroPrestacoes);
+            atualizarEmprestimo(emprestimoID, novoValor, novoNumeroPrestacoes);
+            break;
+        case 5:
+            system("clear");
+            printf("Insira o ID do empréstimo: ");
+            scanf("%d", &emprestimoID);
+            removerEmprestimo(emprestimoID);
+            break;
+        case 6:
             system("clear");
             printf("Finalizando...\n");
             break;
