@@ -9,3 +9,4 @@ gcc main.c sqlite3.c -lm
 Após compilado, execute o arquivo `a.out` gerado. Caso esteja usando Windows, será necessária algumas alterações no código:
 * Adicione no início do arquivo `#include <windows.h>`
 * Troque os `system("clear")` por `system("cls")` na função `menu()`.
+* A execução será de um arquivo `.exe` após compilado.
